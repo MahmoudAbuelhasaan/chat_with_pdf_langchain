@@ -1,0 +1,62 @@
+import os
+from app import db
+from app import bcrypt  # correct spelling
+from flask_login import UserMixin
+from datetime import datetime
+import uuid
+
+class User(UserMixin,db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    hashed_password = db.Column(db.String(128), nullable=False)
+    created_at  = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def set_password(self, password):
+        self.hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+
+    def check_password(self, password):
+        return bcrypt.check_password_hash(self.hashed_password, password)
+    
+
+
+class PdfFile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(120), nullable=False)
+    filepath = db.Column(db.String(200), nullable=False)
+    uploaded_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('pdf_files'))
+
+    def upload_file(self, file):
+        self.filename = file.filename
+        unique_id = uuid.uuid4().hex
+        filename_parts = file.filename.rsplit('.', 1)
+        if len(filename_parts) == 2:
+            name, ext = filename_parts
+            new_filename = f"{name}_{unique_id}.{ext}"
+        else:
+            new_filename = f"{file.filename}_{unique_id}"
+        
+        uploads_dir = 'uploads'
+        os.makedirs(uploads_dir, exist_ok=True)
+        self.filepath = f'{uploads_dir}/{new_filename}'
+        file.save(self.filepath)
+        self.uploaded_at = datetime.utcnow()
+
+
+class ChatMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    user = db.relationship('User', backref=db.backref('chat_messages'))
+    chat_session_id = db.Column(db.Integer, db.ForeignKey('chat_session.id'), nullable=False)
+
+
+class ChatSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('chat_sessions'))
+    messages = db.relationship('ChatMessage', backref='chat_session')
+
