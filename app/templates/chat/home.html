@@ -15,7 +15,7 @@
                 <div class="list-group list-group-flush flex-grow-1 overflow-auto" id="pdfList"
                     style="min-height:0; height:100%;">
                     {% for pdf in uploaded_pdfs %}
-                    <a href="{{ url_for('static', filename=pdf.filepath.replace('static/', '')) }}"
+                    <a href="{{ url_for('chat.chat') }}"
                         class="list-group-item list-group-item-action" target="_blank">
                         {{ pdf.filename }}
                     </a>

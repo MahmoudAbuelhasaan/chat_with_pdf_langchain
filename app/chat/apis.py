@@ -35,7 +35,14 @@ def home():
             flash(f'Error uploading file: {str(e)}', 'danger')
             return redirect(request.url)
 
-    # List PDFs uploaded by current user
-    uploaded_pdfs = PdfFile.query.filter_by(user_id=current_user.id).order_by(PdfFile.uploaded_at.desc()).all()
 
+    uploaded_pdfs = PdfFile.query.filter_by(user_id=current_user.id).order_by(PdfFile.uploaded_at.desc()).all()
     return render_template('chat/home.html', uploaded_pdfs=uploaded_pdfs)
+
+
+@bp.route('/chat', methods=['GET', 'POST']) 
+@login_required
+def chat():
+
+    return render_template('chat/chat.html')
+    
