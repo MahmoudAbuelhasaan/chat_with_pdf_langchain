@@ -27,7 +27,7 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp, url_prefix='/auth')
 
     from app.chat import bp as chat_bp
-    app.register_blueprint(chat_bp, url_prefix='/chat')
+    app.register_blueprint(chat_bp)
 
     return app
 

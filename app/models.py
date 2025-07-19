@@ -29,20 +29,28 @@ class PdfFile(db.Model):
     user = db.relationship('User', backref=db.backref('pdf_files'))
 
     def upload_file(self, file):
+        print("Uploading file:", file)
         self.filename = file.filename
+        print("Original filename:", self.filename)
         unique_id = uuid.uuid4().hex
         filename_parts = file.filename.rsplit('.', 1)
+        print("Filename parts:", filename_parts)
         if len(filename_parts) == 2:
             name, ext = filename_parts
+            print("Name:", name, "Extension:", ext)
             new_filename = f"{name}_{unique_id}.{ext}"
         else:
             new_filename = f"{file.filename}_{unique_id}"
-        
-        uploads_dir = 'uploads'
+
+        uploads_dir = os.path.join('app', 'static', 'uploads')
         os.makedirs(uploads_dir, exist_ok=True)
-        self.filepath = f'{uploads_dir}/{new_filename}'
-        file.save(self.filepath)
+
+        self.filepath = os.path.join('static', 'uploads', new_filename)
+        full_path = os.path.join('app', self.filepath)
+
+        file.save(full_path)
         self.uploaded_at = datetime.utcnow()
+
 
 
 class ChatMessage(db.Model):
