@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
+
 <style>
   body {
     background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
@@ -126,6 +127,8 @@
   }
 </style>
 
+
+
 <div class="chat-container">
   <div class="chat-header">
     <h5><i class="bi bi-database"></i> PDF Chat </h5>
@@ -145,51 +148,59 @@
     <button id="send" type="button" style="flex-shrink:0;"><i class="bi bi-send"></i> Send</button>
  </div>
 </div>
-
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" crossorigin="anonymous"></script>
+
+
 <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" crossorigin="anonymous"></script>
+
 <script>
-  $(document).ready(function() {
+  const pdfId = {{ pdf.id | tojson }};  
+  console.log("PDF ID:", pdfId);
+  $(document).ready(function () {
     const socketio = io();
     const $chat = $('#chat');
     const $messageInput = $('#message');
     const $sendBtn = $('#send');
 
-
-    // Add loading spinner style
-    const spinnerStyle = `<style id="chat-spinner-style">
-      @keyframes chat-spin { 100% { transform: rotate(360deg); } }
-      .chat-spinner {
-        display: inline-block;
-        width: 28px;
-        height: 28px;
-        border: 3px solid #a5b4fc;
-        border-top: 3px solid #6366f1;
-        border-radius: 50%;
-        animation: chat-spin 0.8s linear infinite;
-        margin-right: 8px;
-      }
-    </style>`;
+    // Spinner CSS
+    const spinnerStyle = `
+      <style id="chat-spinner-style">
+        @keyframes chat-spin { 100% { transform: rotate(360deg); } }
+        .chat-spinner {
+          display: inline-block;
+          width: 28px;
+          height: 28px;
+          border: 3px solid #a5b4fc;
+          border-top: 3px solid #6366f1;
+          border-radius: 50%;
+          animation: chat-spin 0.8s linear infinite;
+          margin-right: 8px;
+        }
+      </style>
+    `;
     if (!document.getElementById('chat-spinner-style')) {
       $('head').append(spinnerStyle);
     }
 
-    // Listen for incoming messages from the server
-    socketio.on('response', function(data) {
-      // Remove spinner if present
+    // Handle server responses
+    socketio.on('response', function (data) {
       $chat.find('.ai-loading-message').remove();
+
       const aiMessage = $('<div>').addClass('message-container ai-message mb-2');
       const aiAvatar = $('<div>').addClass('ai-avatar').html('<i class="bi bi-robot"></i>');
       const aiBubble = $('<div>').addClass('bubble bubble-ai').text(data.response);
+
       aiMessage.append(aiAvatar).append(aiBubble);
       $chat.append(aiMessage);
       $chat.scrollTop($chat[0].scrollHeight);
     });
 
+    // Send message function
     function sendMessage() {
       const message = $messageInput.val().trim();
       if (!message) return;
-      // display user message in chat
+
+      // Add user message to chat
       const userMessage = $('<div>').addClass('message-container user-message mb-2');
       const userAvatar = $('<div>').addClass('user-avatar').html('<i class="bi bi-person"></i>');
       const userBubble = $('<div>').addClass('bubble bubble-user').text(message);
@@ -197,18 +208,25 @@
       $chat.append(userMessage);
       $chat.scrollTop($chat[0].scrollHeight);
       $messageInput.val('');
-      // Add AI loading spinner
+
+      // Show loading spinner
       const loadingMsg = $('<div>').addClass('message-container ai-message mb-2 ai-loading-message');
       const loadingAvatar = $('<div>').addClass('ai-avatar').html('<i class="bi bi-robot"></i>');
-      const loadingBubble = $('<div>').addClass('bubble bubble-ai').html('<span class="chat-spinner"></span>Thinking...');
+      const loadingBubble = $('<div>').addClass('bubble bubble-ai').html('<span class="chat-spinner"></span> Thinking...');
       loadingMsg.append(loadingAvatar).append(loadingBubble);
       $chat.append(loadingMsg);
       $chat.scrollTop($chat[0].scrollHeight);
-      socketio.emit('message', { message: message });
+
+      // Send to backend
+      socketio.emit('message', {
+        message: message,
+        pdf_id: pdfId
+      });
     }
 
+    // Click and Enter handlers
     $sendBtn.click(sendMessage);
-    $messageInput.on('keypress', function(event) {
+    $messageInput.on('keypress', function (event) {
       if (event.which === 13) {
         event.preventDefault();
         sendMessage();
@@ -216,6 +234,7 @@
     });
   });
 </script>
+
 
 {% endblock content %}
 

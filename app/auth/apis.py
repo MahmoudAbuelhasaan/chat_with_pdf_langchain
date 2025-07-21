@@ -15,8 +15,8 @@ def login():
         if user and user.check_password(password):
             login_user(user)
             flash('You are loged in. ')   
-            return redirect('/chat/chat')     
-
+            return redirect(url_for("chat.home"))
+     
     return render_template('auth/login.html',form=form)
 
 @bp.route('/register', methods=['GET', 'POST'])
@@ -35,5 +35,9 @@ def register():
         
     return render_template('auth/register.html',form=form)
 
+@bp.route('/logout')
+@login_required
 def logout():
-    pass
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect('/auth/login')
