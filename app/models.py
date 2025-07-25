@@ -55,16 +55,27 @@ class PdfFile(db.Model):
 
 class ChatMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('chat_messages', lazy=True))
+
     message = db.Column(db.Text, nullable=False)
+    is_user = db.Column(db.Boolean, nullable=False, default=True)  
+
     timestamp = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    user = db.relationship('User', backref=db.backref('chat_messages'))
+
     chat_session_id = db.Column(db.Integer, db.ForeignKey('chat_session.id'), nullable=False)
+
 
 
 class ChatSession(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref=db.backref('chat_sessions'))
-    messages = db.relationship('ChatMessage', backref='chat_session')
+    user = db.relationship('User', backref=db.backref('chat_sessions', lazy=True))
+
+    pdf_id = db.Column(db.Integer, db.ForeignKey('pdf_file.id'), nullable=False)
+    pdf = db.relationship('PdfFile', backref=db.backref('chat_sessions', lazy=True))
+
+    messages = db.relationship('ChatMessage', backref='chat_session', cascade='all, delete-orphan')
 

@@ -135,13 +135,25 @@
     <small>Ask questions about your PDF</small>
   </div>
   <div id="chat">
-    <div class="message-container ai-message mb-2">
-      <div class="ai-avatar"><i class="bi bi-robot"></i></div>
-      <div class="bubble bubble-ai">
-        <strong>Welcome to your PDF Chat Agent!</strong><br>
-  
-      </div>
-    </div>
+    {% if not chat_messages %}
+        <div class="message-container ai-message mb-2">
+            <div class="ai-avatar"><i class="bi bi-robot"></i></div>
+            <div class="bubble bubble-ai">
+                <strong>Welcome to your PDF Chat Agent!</strong><br>
+            </div>
+        </div>
+    {% else %}
+        {% for message in chat_messages %}
+            <div class="message-container {% if message.is_user %}user-message{% else %}ai-message{% endif %} mb-2">
+                <div class="{% if message.is_user %}user-avatar{% else %}ai-avatar{% endif %}">
+                    <i class="bi bi-{% if message.is_user %}person{% else %}robot{% endif %}"></i>
+                </div>
+                <div class="bubble {% if message.is_user %}bubble-user{% else %}bubble-ai{% endif %}">
+                    {{ message.message }}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
   </div>
   <div class="chat-footer" style="width:100%;">
     <input type="text" id="message" placeholder="Type your question here..." style="flex:1; width:100%;">

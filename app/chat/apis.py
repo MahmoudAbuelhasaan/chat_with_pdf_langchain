@@ -5,7 +5,7 @@ from flask import render_template, redirect, request, flash, url_for
 from flask_login import login_required, current_user
 from app import db, socketio
 from app.chat import bp
-from app.models import PdfFile
+from app.models import PdfFile, User, ChatSession,ChatMessage
 from app.utilits import allowed_file
 from app.AI.ai import initialize_pdf_chat
 
@@ -23,6 +23,30 @@ def get_pdf_or_404(pdf_id):
         flash("PDF not found or access denied.", "danger")
         return None
     return pdf
+
+
+def create_chat_session(pdf_id):
+    session = ChatSession(user_id=current_user.id, pdf_id=pdf_id)
+    db.session.add(session)
+    db.session.commit()
+    return session
+
+
+def save_chat_message(session_id, sender, message):
+    is_user = sender == 'user'
+
+    chat_message = ChatMessage(
+        user_id=current_user.id,
+        chat_session_id=session_id,
+        message=message,
+        is_user=is_user
+    )
+
+    db.session.add(chat_message)
+    db.session.commit()
+
+  
+  
 
 
 # ---------- Routes ----------
@@ -43,9 +67,12 @@ def home():
 
         try:
             pdf = PdfFile(user_id=current_user.id)
+            # create a chat session ID and save it in db
             pdf.upload_file(file)
             db.session.add(pdf)
             db.session.commit()
+            # Create a new chat session for the uploaded PDF
+            create_chat_session(pdf.id)
             flash(f'File "{file.filename}" uploaded successfully!', 'success')
             return redirect(url_for('chat.chat_with_pdf', pdf_id=pdf.id))
         except Exception as e:
@@ -73,19 +100,32 @@ def chat_with_pdf(pdf_id):
     pdf = get_pdf_or_404(pdf_id)
     if not pdf:
         return redirect(url_for("chat.home"))
-    return render_template("chat/chat.html", pdf=pdf)
+    
+    # Get or create chat session for this PDF
+    chat_session = ChatSession.query.filter_by(
+        user_id=current_user.id,
+        pdf_id=pdf_id
+    ).first()
+    
+    if not chat_session:
+        chat_session = create_chat_session(pdf_id)
+    
+    # Load chat history
+    chat_messages = ChatMessage.query.filter_by(
+        chat_session_id=chat_session.id
+    ).order_by(ChatMessage.timestamp).all()
+    
+    return render_template("chat/chat.html", pdf=pdf, chat_messages=chat_messages)
 
 
 
 # ---------- Socket.IO Event ----------
 
 @socketio.on('message')
-@login_required
 def handle_message(data):
     user_message = data.get('message')
     pdf_id = data.get('pdf_id')
-    session_id = str(current_user.id)
-
+    
     if not user_message or not pdf_id:
         socketio.emit('response', {'response': "Missing message or PDF ID."})
         return
@@ -94,22 +134,34 @@ def handle_message(data):
     if not pdf or pdf.user_id != current_user.id:
         socketio.emit('response', {'response': "Invalid PDF or access denied."})
         return
+        
+    # Get the chat session
+    chat_session = ChatSession.query.filter_by(
+        user_id=current_user.id,
+        pdf_id=pdf_id
+    ).first()
+    
+    if not chat_session:
+        chat_session = create_chat_session(pdf_id)
+
+    # Save user message to database
+    save_chat_message(chat_session.id, 'user', user_message)
 
     try:
         pdf_path = f"app/{pdf.filepath}"
-        agent = initialize_pdf_chat(pdf_path, session_id)
+        agent = initialize_pdf_chat(pdf_path, str(chat_session.id), pdf_id)
 
         response = agent.invoke(
             {"input": user_message},
             config={
                 "configurable": {
-                    "session_id": session_id
+                    "session_id": str(chat_session.id)
                 }
             }
         )
+        # Save AI response to database
+        save_chat_message(chat_session.id, 'ai', str(response.content))
 
-
-        # socketio.emit('response', {'response': response.get('output', 'No response')})
         socketio.emit('response', {'response': str(response.content)})
     except Exception as e:
         socketio.emit('response', {'response': f"Error processing message: {str(e)}"})
